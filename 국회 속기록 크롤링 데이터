@@ -1,0 +1,119 @@
+import os
+import time
+import requests
+
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.action_chains import ActionChains
+
+# assembly_file_folder 변수에 파일이 국회 저장되기를 원하는 상위 디렉토리 경로 입력
+
+assembly_file_folder = "D:\MJ 데이터 공모전 로우 데이터\\국회의원 속기록\\15대_원본"
+service = Service(assembly_file_folder)
+
+# period_file_folder 변수에 '몇 대 파일'을 저장할 디렉토리 경로 입력(지금 상태에서는 필요 없는데, 위원회를 나누고 싶으면 이 코드를 활용해야 합니다.)
+period_file_folder = "D:\MJ 데이터 공모전 로우 데이터\\국회의원 속기록{csv}\\15대_csv"
+prefs = {"download.default_directory": period_file_folder}
+options = webdriver.ChromeOptions()  # options 객체 생성
+options.add_experimental_option("prefs", prefs)
+driver = webdriver.Chrome(options=options)
+driver.get('https://likms.assembly.go.kr/record/mhs-40-010.do')
+
+# 국회 회의록 사이트에서 하위 카테고리가 있는 경우와 없는 경우가 다른데, 이를 어떻게 구분해야할지 마땅치 않아서 경우를 나누어 손수 작업했습니다.-------------------------------------------------------------------------------------------------------------------------------------
+
+# 하위카테고리가 있는 경우
+
+len_elements1 = driver.find_elements(By.XPATH, '/html/body/div[2]/div[1]/div/div[2]/div/ul/li')
+for num_elements1 in range(1, len(len_elements1) + 1):
+    xpath_elements1 = f"/html/body/div[2]/div[1]/div/div[2]/div/ul/li[{num_elements1}]/div[1]/a"
+    element1 = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, xpath_elements1)))
+    actions1 = ActionChains(driver)
+    actions1.move_to_element(element1).click().perform()
+    time.sleep(1)
+
+    len_elements3 = driver.find_elements(By.XPATH, f'/html/body/div[2]/div[1]/div/div[2]/div/ul/li[{num_elements1}]/div[2]/div/ul/li')
+    for num_elements3 in range(1, len(len_elements3) + 1):
+        xpath_elements3 = f"/html/body/div[2]/div[1]/div/div[2]/div/ul/li[{num_elements1}]/div[2]/div/ul/li[{num_elements3}]/a"
+        element3 = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, xpath_elements3)))
+        element3.click()
+        time.sleep(0.6)
+
+        len_elements2 = driver.find_elements(By.XPATH, f'/html/body/div[2]/div[1]/div/div[2]/div/ul/li[{num_elements1}]/div[2]/div/ul/li[{num_elements3}]/ul/li')
+        for num_elements2 in range(1, len(len_elements2) + 1):
+            xpath_elements2 = f'/html/body/div[2]/div[1]/div/div[2]/div/ul/li[{num_elements1}]/div[2]/div/ul/li[{num_elements3}]/ul/li[{num_elements2}]/span/span/a[1]'
+            element2 = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, xpath_elements2)))
+            element2.click()
+            time.sleep(0.3)
+
+# 하위 카테고리가 없는 경우
+
+len_elements1 = driver.find_elements(By.XPATH, '/html/body/div[2]/div[1]/div/div[2]/div/ul/li')
+for num_elements1 in range(1, len(len_elements1) + 1):
+    xpath_elements1 = f"/html/body/div[2]/div[1]/div/div[2]/div/ul/li[{num_elements1}]/div/div/a"
+    element1 = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, xpath_elements1)))
+    actions1 = ActionChains(driver)
+    actions1.move_to_element(element1).click().perform()
+    time.sleep(1)
+
+    len_elements2 = driver.find_elements(By.XPATH, f'/html/body/div[2]/div[1]/div/div[2]/div/ul/li[{num_elements1}]/div[2]/div/ul/li/span/span/a[1]')
+    for num_elements2 in range(1, len(len_elements2) + 1):
+        xpath_elements2 = f'/html/body/div[2]/div[1]/div/div[2]/div/ul/li[{num_elements1}]/div[2]/div/ul/li[{num_elements2}]/span/span/a[1]'
+        element2 = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, xpath_elements2)))
+        element2.click()
+        time.sleep(0.3
+
+# 한글파일인 국회 속기록을 csv로 반환하는 코드
+
+import os
+import subprocess
+import pandas as pd
+
+def hwp_to_txt(hwp_file, txt_file):
+    hwp5txt_path = "C:/Program Files/hwp5txt"
+    subprocess.run([hwp5txt_path, hwp_file, '--output', txt_file])
+
+def txt_to_csv(txt_file, csv_file):
+    df = pd.read_csv(txt_file, sep='\t', header=None)
+    df.to_csv(csv_file, index=False, encoding='utf-8-sig')
+
+def get_file_names(folder, extension):
+    file_names = set()
+
+    for root, dirs, files in os.walk(folder):
+        for file in files:
+            if file.endswith(extension):
+                file_names.add(os.path.splitext(file)[0])
+
+    return file_names
+
+def convert_all_hwps_to_csv(input_folder, output_folder):
+    csv_file_names = get_file_names(output_folder, '.csv')
+
+    for root, dirs, files in os.walk(input_folder):
+        for file in files:
+            if file.endswith('.hwp'):
+                hwp_file_name = os.path.splitext(file)[0]
+
+                # Only convert the hwp file if a corresponding csv file doesn't already exist
+                if hwp_file_name not in csv_file_names:
+                    relative_path = os.path.relpath(root, input_folder)
+                    current_output_folder = os.path.join(output_folder, relative_path)
+
+                    if not os.path.exists(current_output_folder):
+                        os.makedirs(current_output_folder)
+
+                    hwp_path = os.path.join(root, file)
+                    txt_path = os.path.join(current_output_folder, hwp_file_name + '.txt')
+                    csv_path = os.path.join(current_output_folder, hwp_file_name + '.csv')
+
+                    hwp_to_txt(hwp_path, txt_path)
+                    txt_to_csv(txt_path, csv_path)
+                    os.remove(txt_path)
+
+input_folder = "C:\\Users\\Admin\\Desktop\\MJ_side_project\\18대_속기록_원본"
+output_folder = "C:\\Users\\Admin\\Desktop\\MJ_side_project\\18대 국회 기록(csv)"
+
+convert_all_hwps_to_csv(input_folder, output_folder)
